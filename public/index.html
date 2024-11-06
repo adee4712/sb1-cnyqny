@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Search Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Product Search Engine</h1>
+        
+        <div class="max-w-xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <form id="searchForm" class="mb-6">
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="Enter product name..."
+                            class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                        <button 
+                            type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            Search
+                        </button>
+                    </div>
+                </form>
+
+                <div id="remainingSearches" class="text-sm text-gray-600 mb-4"></div>
+                <div id="error" class="text-red-600 hidden"></div>
+                <div id="searchResults" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        const errorDiv = document.getElementById('error');
+        const remainingSearches = document.getElementById('remainingSearches');
+
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            
+            if (!query) return;
+
+            try {
+                searchResults.innerHTML = '<div class="text-center py-4">Searching...</div>';
+                errorDiv.classList.add('hidden');
+
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Search failed');
+                }
+
+                const remaining = response.headers.get('X-RateLimit-Remaining') || 'N/A';
+                remainingSearches.textContent = `Remaining searches today: ${remaining}`;
+
+                if (data.results && data.results.length > 0) {
+                    searchResults.innerHTML = data.results
+                        .map(product => `
+                            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <h3 class="font-semibold text-lg">${product.title}</h3>
+                                <p class="text-gray-600">Platform: ${product.platform}</p>
+                                <p class="text-green-600 font-bold">$${product.price.toFixed(2)}</p>
+                                <a 
+                                    href="${product.affiliateLink}" 
+                                    target="_blank"
+                                    rel="noopener noreferrer" 
+                                    class="inline-block mt-2 text-blue-600 hover:underline"
+                                >
+                                    View on ${product.platform}
+                                </a>
+                            </div>
+                        `)
+                        .join('');
+                } else {
+                    searchResults.innerHTML = '<div class="text-center py-4">No products found</div>';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.remove('hidden');
+                searchResults.innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>
